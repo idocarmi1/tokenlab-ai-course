@@ -1,15 +1,74 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
+
+// --- Tweakable options (change defaults here) ---
+const ACCENT = 'cyan+violet' // 'cyan+violet' | 'cyan only' | 'violet only' | 'ice blue'
+const LINE_NUMBERS = true
+const SCANLINES = true
+
+const accentMap = {
+  'cyan+violet': ['#57d0e6', '#9d8cf0'],
+  'cyan only': ['#57d0e6', '#57d0e6'],
+  'violet only': ['#9d8cf0', '#b39dff'],
+  'ice blue': ['#7fb6e6', '#6fa0d8'],
+}
 
 const defaultSentence = 'אני לומד בינה מלאכותית'
 
-const flowSteps = ['טקסט', 'טוקנים', 'מספרים', 'ניבוי']
+const pipelineSteps = [
+  { num: '01', label: 'טקסט', code: 'raw_text', tone: 'accent' },
+  { num: '02', label: 'טוקנים', code: 'tokens[]', tone: 'accent2' },
+  { num: '03', label: 'מספרים', code: 'token_ids', tone: 'amber' },
+  { num: '04', label: 'ניבוי', code: 'predict()', tone: 'accent' },
+]
+
+const concepts = [
+  {
+    tone: 'accent',
+    text: 'מודלי שפה לא קוראים משפטים כמו בני אדם — הם מפרקים אותם ליחידות קטנות שנקראות טוקנים.',
+  },
+  {
+    tone: 'accent2',
+    text: 'טוקן יכול להיות מילה, חלק ממילה, מספר, סימן פיסוק או תו מיוחד.',
+  },
+  {
+    tone: 'amber',
+    text: 'אחרי הפירוק, כל טוקן מיוצג בצורה מספרית כדי שהמודל יוכל לחשב קשרים ולחזות המשך.',
+  },
+]
 
 const predictions = [
   { token: 'לעבוד', probability: 62 },
   { token: 'להתקדם', probability: 24 },
   { token: 'ללמוד', probability: 10 },
   { token: 'לאכול', probability: 4 },
+]
+
+const businessItems = [
+  {
+    num: '[01]',
+    tone: 'accent',
+    title: 'עלות שימוש',
+    text: 'יותר טוקנים יכולים להגדיל את עלות הקריאה למודל.',
+  },
+  {
+    num: '[02]',
+    tone: 'accent2',
+    title: 'אורך קלט',
+    text: 'לכל מודל יש מגבלה על כמות הטוקנים שניתן לשלוח.',
+  },
+  {
+    num: '[03]',
+    tone: 'amber',
+    title: 'אורך תשובה',
+    text: 'גם התשובה שהמודל מחזיר נספרת כחלק מתקציב הטוקנים.',
+  },
+  {
+    num: '[04]',
+    tone: 'accent',
+    title: 'מסמכים ופניות',
+    text: 'מיילים, חוזים ופניות ארוכות דורשים תכנון חכם של הקלט.',
+  },
 ]
 
 const quizQuestions = [
@@ -42,27 +101,8 @@ const quizQuestions = [
   },
 ]
 
-const businessItems = [
-  {
-    title: 'עלות שימוש',
-    text: 'יותר טוקנים יכולים להגדיל את עלות הקריאה למודל.',
-  },
-  {
-    title: 'אורך קלט',
-    text: 'לכל מודל יש מגבלה על כמות הטוקנים שניתן לשלוח.',
-  },
-  {
-    title: 'אורך תשובה',
-    text: 'גם התשובה שהמודל מחזיר נספרת כחלק מתקציב הטוקנים.',
-  },
-  {
-    title: 'מסמכים ופניות לקוחות',
-    text: 'מיילים, חוזים ופניות ארוכות דורשים תכנון חכם של הקלט.',
-  },
-]
-
 function tokenize(text) {
-  return text.trim().match(/[\u0590-\u05FF]+|[A-Za-z]+|\d+|[^\s]/g) ?? []
+  return String(text || '').trim().match(/[֐-׿]+|[A-Za-z]+|\d+|[^\s]/g) ?? []
 }
 
 function tokenId(token) {
@@ -78,9 +118,14 @@ function tokenId(token) {
 function App() {
   const [sentence, setSentence] = useState(defaultSentence)
   const [tokens, setTokens] = useState(() => tokenize(defaultSentence))
-  const [tokenizedAt, setTokenizedAt] = useState(1)
+  const [run, setRun] = useState(1)
+  const [scanning, setScanning] = useState(false)
   const [answers, setAnswers] = useState({})
-  const [quizSubmitted, setQuizSubmitted] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const timeoutRef = useRef(null)
+
+  const [accentPrimary, accentSecondary] = accentMap[ACCENT] ?? accentMap['cyan+violet']
+  const themeVars = { '--accent': accentPrimary, '--accent-2': accentSecondary }
 
   const tokenData = useMemo(
     () => tokens.map((token, index) => ({ token, id: tokenId(token), index })),
@@ -90,424 +135,537 @@ function App() {
   const tokenCount = tokenData.length
   const charCount = tokenData.reduce((total, item) => total + item.token.length, 0)
   const charsPerToken = tokenCount > 0 ? (charCount / tokenCount).toFixed(1) : '0'
+  const hasTokens = tokenCount > 0
+  const showTokens = !scanning && hasTokens
+  const showEmpty = !scanning && !hasTokens
+  const showStats = !scanning && hasTokens
 
   const topProbability = Math.max(...predictions.map((item) => item.probability))
 
   const answeredCount = Object.keys(answers).length
+  const total = quizQuestions.length
   const score = quizQuestions.reduce(
-    (total, item, index) => total + (answers[index] === item.correct ? 1 : 0),
+    (sum, item, index) => sum + (answers[index] === item.correct ? 1 : 0),
     0,
   )
-  const canSubmitQuiz = answeredCount === quizQuestions.length
-  const scorePercent = Math.round((score / quizQuestions.length) * 100)
-  const isPerfect = score === quizQuestions.length
+  const canSubmit = answeredCount >= total
+  const perfect = score === total
+  const scoreLine = submitted ? `${score}/${total}` : `${answeredCount}/${total}`
+  const resultLabel = submitted
+    ? perfect
+      ? 'PASSED — כל התשובות נכונות'
+      : 'PARTIAL — המשיכו ללמוד'
+    : 'שאלות שנענו'
+
+  useEffect(() => () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+  }, [])
 
   function handleTokenize() {
-    setTokens(tokenize(sentence))
-    setTokenizedAt((value) => value + 1)
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    setScanning(true)
+    timeoutRef.current = setTimeout(() => {
+      setTokens(tokenize(sentence))
+      setRun((value) => value + 1)
+      setScanning(false)
+    }, 440)
+  }
+
+  function handleKeyDown(event) {
+    if (event.key === 'Enter') handleTokenize()
   }
 
   function selectAnswer(questionIndex, option) {
     setAnswers((current) => ({ ...current, [questionIndex]: option }))
-    setQuizSubmitted(false)
+    setSubmitted(false)
   }
 
   function submitQuiz() {
-    if (canSubmitQuiz) {
-      setQuizSubmitted(true)
-    }
+    if (canSubmit) setSubmitted(true)
   }
 
   return (
-    <div className="page-shell">
-      <a className="skip-link" href="#main">
-        דלגו לתוכן הראשי
+    <div className="app" style={themeVars}>
+      <div className="bg-glow" aria-hidden="true"></div>
+      {SCANLINES && <div className="bg-scanlines" aria-hidden="true"></div>}
+
+      <a className="skip-link" href="#lab">
+        דלגו למעבדה האינטראקטיבית
       </a>
-      <header className="top-header">
-        <a className="brand-mark" href="#top" aria-label="TokenLab ראש הדף">
-          TokenLab
-        </a>
-        <p>פרויקט אישי — יישומי AI בעולם העסקי</p>
+
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="topbar-left">
+            <span className="win-dots win-dots--mute" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </span>
+            <span className="breadcrumb">
+              ~/tokenlab/lesson_09/<span className="breadcrumb-file">tokens.demo</span>
+            </span>
+          </div>
+          <span className="topbar-status">
+            <span className="dot-green" aria-hidden="true"></span>he-IL · RTL
+          </span>
+        </div>
       </header>
 
       <main id="main">
-      <section id="top" className="hero-section" aria-labelledby="page-title">
-        <div className="hero-content">
-          <p className="eyebrow">שיעור 9 · Language Models · Tokens</p>
-          <h1 id="page-title">TokenLab — איך מודל שפה קורא משפט?</h1>
-          <p className="hero-subtitle">
-            המחשה אינטראקטיבית למושג "טוקנים במודלי שפה גדולים" מתוך הקורס
-            יישומי AI בעולם העסקי.
-          </p>
-          <p className="hero-note">
-            תראו איך משפט בעברית מתפרק לטוקנים, איך כל טוקן מקבל מזהה מספרי,
-            ואיך מודל שפה בוחר את הטוקן הבא לפי הסתברויות.
-          </p>
-
-          <div className="hero-actions">
-            <a className="primary-cta" href="#lab">
-              התחילו הדגמה
-            </a>
-            <div className="hero-badges" aria-label="נושאי השיעור">
-              <span>שיעור 9</span>
-              <span>LLMs</span>
-              <span>Tokens</span>
-              <span>Next Token Prediction</span>
+        {/* HERO */}
+        <section id="top" className="hero" aria-labelledby="page-title">
+          <div className="hero-card">
+            <div className="hero-source">
+              {LINE_NUMBERS && (
+                <div className="gutter" aria-hidden="true">
+                  {Array.from({ length: 12 }, (_, index) => (
+                    <span key={index}>{String(index + 1).padStart(2, '0')}</span>
+                  ))}
+                </div>
+              )}
+              <div className="hero-content">
+                <div className="code-comment">// שיעור 9 · Language Models · Tokens</div>
+                <div className="wordmark">
+                  <span className="wordmark-text">TokenLab</span>
+                  <span className="wordmark-cursor" aria-hidden="true">_</span>
+                </div>
+                <h1 className="hero-title" id="page-title">
+                  איך מודל שפה קורא משפט?
+                </h1>
+                <p className="hero-lead">
+                  המחשה אינטראקטיבית למושג "טוקנים במודלי שפה גדולים" מתוך הקורס
+                  יישומי AI בעולם העסקי. תראו איך משפט מתפרק לטוקנים, איך כל טוקן
+                  מקבל מזהה מספרי, ואיך מודל שפה בוחר את הטוקן הבא לפי הסתברויות.
+                </p>
+                <div className="hero-actions">
+                  <a className="btn-run" href="#lab">
+                    התחילו הדגמה <span className="btn-run-suffix">run()</span>
+                  </a>
+                </div>
+                <div className="hero-tags" aria-label="נושאי השיעור">
+                  <span className="tag tag--accent">lesson_09</span>
+                  <span className="tag tag--accent2">LLMs</span>
+                  <span className="tag tag--amber">Tokens</span>
+                  <span className="tag tag--muted">Next-Token-Prediction</span>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
 
-        <aside className="hero-lab-card" aria-hidden="true">
-          <div className="mock-toolbar">
-            <span></span>
-            <span></span>
-            <span></span>
+            <aside className="hero-output" aria-hidden="true">
+              <div className="pane-head">
+                <span className="win-dots win-dots--accent">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </span>
+                <span className="pane-title">tokenizer · output</span>
+              </div>
+              <div className="pane-body">
+                <div className="sweep">
+                  <div className="sweep-bar"></div>
+                </div>
+                <div className="out-block">
+                  <div className="out-label">INPUT</div>
+                  <div className="out-input">
+                    אני לומד בינה מלאכותית<span className="caret">▌</span>
+                  </div>
+                </div>
+                <div className="out-block">
+                  <div className="out-label">TOKENS</div>
+                  <div className="out-tokens">
+                    <span>אני</span>
+                    <span>לומד</span>
+                    <span>בינה</span>
+                    <span>מלאכותית</span>
+                  </div>
+                </div>
+                <div className="out-block">
+                  <div className="out-label">NEXT ›</div>
+                  <div className="out-next-row">
+                    <strong>לעבוד</strong>
+                    <span className="mono-accent">0.62</span>
+                  </div>
+                  <div className="track">
+                    <div className="track-fill track-fill--loop" style={{ width: '62%' }}></div>
+                  </div>
+                </div>
+              </div>
+            </aside>
           </div>
-          <div className="mock-stage">
-            <p className="mock-label">משפט</p>
-            <p className="mock-sentence">אני לומד בינה מלאכותית כדי...</p>
-          </div>
-          <div className="mock-token-row">
-            <span>אני</span>
-            <span>לומד</span>
-            <span>בינה</span>
-            <span>מלאכותית</span>
-          </div>
-          <div className="mock-id-grid">
-            <span>אני <strong>65214</strong></span>
-            <span>לומד <strong>31877</strong></span>
-            <span>בינה <strong>74201</strong></span>
-            <span>מלאכותית <strong>58934</strong></span>
-          </div>
-          <div className="mock-prediction">
-            <div>
-              <strong>לעבוד</strong>
-              <span>62%</span>
-            </div>
-            <div className="mock-track">
-              <span></span>
-            </div>
-          </div>
-        </aside>
-      </section>
+        </section>
 
-      <nav className="flow-timeline" aria-label="זרימת הלמידה">
-        {flowSteps.map((step, index) => (
-          <div className="timeline-step" key={step}>
-            <span>{index + 1}</span>
-            <strong>{step}</strong>
-          </div>
-        ))}
-      </nav>
-
-      <section className="info-panel" aria-labelledby="token-title">
-        <div>
-          <p className="eyebrow">הרעיון המרכזי</p>
-          <h2 id="token-title">מהו טוקן?</h2>
-        </div>
-        <ul className="concept-list">
-          <li>מודלי שפה לא קוראים משפטים כמו בני אדם, אלא מפרקים אותם ליחידות קטנות.</li>
-          <li>טוקן יכול להיות מילה, חלק ממילה, מספר, סימן פיסוק או תו מיוחד.</li>
-          <li>אחרי הפירוק, כל טוקן מיוצג בצורה מספרית כדי שהמודל יוכל לחשב ולחזות המשך.</li>
-        </ul>
-      </section>
-
-      <section id="lab" className="lab-section" aria-labelledby="lab-title">
-        <div className="section-intro">
-          <p className="eyebrow">המעבדה האינטראקטיבית</p>
-          <h2 id="lab-title">טקסט → טוקנים → מספרים → ניבוי</h2>
-          <p>
-            זו סימולציה פדגוגית פשוטה: היא לא משתמשת בטוקנייזר אמיתי, אבל היא
-            ממחישה את צורת החשיבה מאחורי מודלי שפה גדולים.
-          </p>
-        </div>
-
-        <div className="lab-panel">
-          <div className="lab-step-list" aria-label="שלבי המעבדה">
-            {flowSteps.map((step, index) => (
-              <div className="lab-step" key={step}>
-                <span>0{index + 1}</span>
-                <strong>{step}</strong>
+        {/* PIPELINE */}
+        <section className="pipeline" aria-label="זרימת הלמידה">
+          <div className="pipeline-grid">
+            {pipelineSteps.map((step, index) => (
+              <div
+                className="pipe-chip"
+                key={step.num}
+                style={{ animationDelay: `${index * 0.45}s` }}
+              >
+                <span className={`pipe-num pipe-num--${step.tone}`}>{step.num}</span>
+                <div>
+                  <strong className="pipe-label">{step.label}</strong>
+                  <span className="pipe-code">{step.code}</span>
+                </div>
               </div>
             ))}
           </div>
+        </section>
 
-          <div className="input-zone">
+        {/* CONCEPT */}
+        <section className="concept" aria-labelledby="concept-title">
+          <div className="concept-panel">
             <div>
-              <label htmlFor="sentence-input">כתבו משפט בעברית</label>
-              <p>אפשר להתחיל מהמשפט המוכן או לנסות משפט משלכם.</p>
+              <div className="mono-label mono-label--accent">/* concept */</div>
+              <h2 className="section-title" id="concept-title">
+                מהו טוקן?
+              </h2>
             </div>
-            <div className="input-row">
-              <input
-                id="sentence-input"
-                type="text"
-                value={sentence}
-                onChange={(event) => setSentence(event.target.value)}
-                placeholder="לדוגמה: אני לומד בינה מלאכותית"
-              />
-              <button type="button" onClick={handleTokenize}>
-                פרק לטוקנים
-              </button>
-            </div>
+            <ul className="concept-list">
+              {concepts.map((item) => (
+                <li className="concept-row" key={item.text}>
+                  <span className={`concept-bullet concept-bullet--${item.tone}`} aria-hidden="true">
+                    ▹
+                  </span>
+                  <p>{item.text}</p>
+                </li>
+              ))}
+            </ul>
           </div>
+        </section>
 
-          <div className="token-stats" key={`stats-${tokenizedAt}`} aria-live="polite">
-            <div className="stat-pill">
-              <strong>{tokenCount}</strong>
-              <span>טוקנים</span>
-            </div>
-            <div className="stat-pill">
-              <strong>{charCount}</strong>
-              <span>תווים</span>
-            </div>
-            <div className="stat-pill">
-              <strong>{charsPerToken}</strong>
-              <span>תווים לטוקן</span>
-            </div>
-          </div>
-
-          <div className="lab-output-grid">
-            <section className="output-zone" aria-labelledby="tokens-title">
-              <div className="zone-heading">
-                <span>שלב 2</span>
-                <h3 id="tokens-title">הטוקנים שנוצרו</h3>
-              </div>
-              <div className="token-area" key={tokenizedAt}>
-                {tokenData.length > 0 ? (
-                  tokenData.map((item) => (
-                    <div
-                      className={`token-chip hue-${item.index % 3}`}
-                      key={`${item.token}-${item.index}`}
-                    >
-                      <span>#{item.index + 1}</span>
-                      <strong>{item.token}</strong>
-                    </div>
-                  ))
-                ) : (
-                  <p className="empty-state">הזינו משפט כדי לראות טוקנים.</p>
-                )}
-              </div>
-            </section>
-
-            <section className="output-zone id-zone" aria-labelledby="ids-title">
-              <div className="zone-heading">
-                <span>שלב 3</span>
-                <h3 id="ids-title">Token IDs</h3>
-              </div>
-              <div className="id-list">
-                {tokenData.map((item) => (
-                  <div className="id-row" key={`${item.token}-id-${item.index}`}>
-                    <span>{item.token}</span>
-                    <code>{item.id}</code>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-
-          <div className="lab-explanation">
-            <strong>למה מספרים?</strong>
-            <p>
-              מחשבים אינם מבינים מילים כמו בני אדם. לכן כל טוקן מיוצג במודל על
-              ידי מספר או ייצוג מתמטי. הייצוג המספרי מאפשר למודל לבצע חישובים,
-              לזהות קשרים בין מילים, ולחזות מה יכול להגיע בהמשך.
+        {/* LAB */}
+        <section id="lab" className="lab" aria-labelledby="lab-title">
+          <div className="section-intro">
+            <div className="mono-label mono-label--accent">tokenizer.run()</div>
+            <h2 className="section-title" id="lab-title">
+              המעבדה האינטראקטיבית
+            </h2>
+            <p className="section-lead">
+              סימולציה פדגוגית: לא טוקנייזר אמיתי, אבל היא ממחישה את צורת החשיבה
+              שמאחורי מודלי שפה גדולים — טקסט הופך לטוקנים, ואז למספרים.
             </p>
           </div>
-        </div>
-      </section>
 
-      <section className="prediction-section" aria-labelledby="prediction-title">
-        <div className="section-intro compact">
-          <p className="eyebrow">שלב 4</p>
-          <h2 id="prediction-title">ניבוי הטוקן הבא</h2>
-          <p className="sentence-preview">אני לומד בינה מלאכותית כדי...</p>
-        </div>
+          <div className="panel">
+            <div className="panel-head">
+              <span className="win-dots win-dots--mute" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              <span className="pane-title">interactive · sandbox</span>
+            </div>
+            <div className="panel-body">
+              <div className="input-block">
+                <label htmlFor="sentence-input" className="input-label">
+                  כתבו משפט בעברית
+                </label>
+                <p className="input-help">
+                  אפשר להתחיל מהמשפט המוכן או לנסות משפט משלכם, וללחוץ על "פרק לטוקנים".
+                </p>
+                <div className="input-row">
+                  <span className="input-prompt" aria-hidden="true">&gt;</span>
+                  <input
+                    id="sentence-input"
+                    type="text"
+                    value={sentence}
+                    onChange={(event) => setSentence(event.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="לדוגמה: אני לומד בינה מלאכותית"
+                  />
+                  <button type="button" className="btn-tokenize" onClick={handleTokenize}>
+                    פרק לטוקנים
+                  </button>
+                </div>
+              </div>
 
-        <div className="prediction-grid">
-          {predictions.map((prediction) => {
-            const isTop = prediction.probability === topProbability
+              {showStats && (
+                <div className="stats" key={`stats-${run}`} aria-live="polite">
+                  <div className="stat-pill">
+                    <strong className="stat-num stat-num--accent">{tokenCount}</strong>
+                    <span>טוקנים</span>
+                  </div>
+                  <div className="stat-pill">
+                    <strong className="stat-num stat-num--accent2">{charCount}</strong>
+                    <span>תווים</span>
+                  </div>
+                  <div className="stat-pill">
+                    <strong className="stat-num stat-num--amber">{charsPerToken}</strong>
+                    <span>תווים לטוקן</span>
+                  </div>
+                </div>
+              )}
 
-            return (
-              <article
-                className={`prediction-option${isTop ? ' winner' : ''}`}
-                key={prediction.token}
-              >
-                {isTop && <span className="winner-badge">הכי סביר</span>}
-                <div className="prediction-label">
-                  <strong>{prediction.token}</strong>
-                  <span>{prediction.probability}%</span>
+              {scanning && (
+                <div className="scan-line" aria-live="polite">
+                  <span className="spinner" aria-hidden="true"></span>
+                  tokenizing…
+                </div>
+              )}
+
+              <div className="lab-grid">
+                <section className="output-zone" aria-labelledby="tokens-title">
+                  <div className="zone-heading">
+                    <span className="step-badge step-badge--accent">step 02</span>
+                    <h3 id="tokens-title">הטוקנים שנוצרו</h3>
+                  </div>
+                  {showTokens && (
+                    <div className="token-area" key={`tokens-${run}`}>
+                      {tokenData.map((item) => (
+                        <div
+                          className="token-chip"
+                          key={`${item.token}-${item.index}`}
+                          style={{ animationDelay: `${item.index * 55}ms` }}
+                        >
+                          <span
+                            className={`token-idx ${item.index % 2 ? 'token-idx--accent2' : 'token-idx--accent'}`}
+                          >
+                            #{item.index + 1}
+                          </span>
+                          <strong>{item.token}</strong>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {showEmpty && (
+                    <p className="empty-state">הזינו משפט כדי לראות טוקנים.</p>
+                  )}
+                </section>
+
+                <section className="output-zone" aria-labelledby="ids-title">
+                  <div className="zone-heading">
+                    <span className="step-badge step-badge--amber">step 03</span>
+                    <h3 id="ids-title">Token IDs</h3>
+                  </div>
+                  {showTokens && (
+                    <div className="id-list" key={`ids-${run}`}>
+                      {tokenData.map((item) => (
+                        <div
+                          className="id-row"
+                          key={`${item.token}-id-${item.index}`}
+                          style={{ animationDelay: `${item.index * 55}ms` }}
+                        >
+                          <span>{item.token}</span>
+                          <code>{item.id}</code>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </div>
+
+              <div className="callout">
+                <span className="callout-mark" aria-hidden="true">//</span>
+                <div>
+                  <strong>למה מספרים?</strong>
+                  <p>
+                    מחשבים אינם מבינים מילים כמו בני אדם, ולכן כל טוקן מיוצג כמספר.
+                    הייצוג המספרי מאפשר למודל לחשב, לזהות קשרים בין מילים, ולחזות
+                    מה יכול להגיע בהמשך.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PREDICTION */}
+        <section className="prediction" aria-labelledby="prediction-title">
+          <div className="prediction-head">
+            <div>
+              <div className="mono-label mono-label--accent">llm.predict(next_token)</div>
+              <h2 className="section-title" id="prediction-title">
+                ניבוי הטוקן הבא
+              </h2>
+            </div>
+            <div className="sentence-preview">
+              אני לומד בינה מלאכותית כדי<span className="caret">▌</span>
+            </div>
+          </div>
+
+          <div className="prediction-grid">
+            {predictions.map((prediction, index) => {
+              const isTop = prediction.probability === topProbability
+
+              return (
+                <article
+                  className={`prediction-option${isTop ? ' winner' : ''}`}
+                  key={prediction.token}
+                >
+                  {isTop && <span className="winner-badge">★ הכי סביר</span>}
+                  <div className="prediction-label">
+                    <strong>{prediction.token}</strong>
+                    <span className={isTop ? 'mono-accent' : 'mono-dim'}>
+                      {prediction.probability}%
+                    </span>
+                  </div>
+                  <div
+                    className="track"
+                    aria-label={`${prediction.token}: ${prediction.probability} אחוז`}
+                  >
+                    <div
+                      className="track-fill track-fill--fill"
+                      style={{
+                        width: `${prediction.probability}%`,
+                        opacity: [1, 0.7, 0.55, 0.4][index] ?? 1,
+                        animationDelay: `${index * 120}ms`,
+                      }}
+                    ></div>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
+
+          <p className="prediction-copy">
+            מודל שפה גדול מאומן על כמויות עצומות של טקסטים. המטרה המרכזית שלו היא
+            לחזות מה הטוקן הבא שהכי סביר שיופיע ברצף. המודל לא באמת "חושב" כמו בן
+            אדם — הוא מחשב הסתברויות על בסיס הדפוסים שלמד מהמידע שעליו אומן.
+          </p>
+        </section>
+
+        {/* BUSINESS */}
+        <section className="business" aria-labelledby="business-title">
+          <div className="section-intro">
+            <div className="mono-label mono-label--accent2">// business_impact</div>
+            <h2 className="section-title" id="business-title">
+              למה זה חשוב בעולם העסקי?
+            </h2>
+            <p className="section-lead">
+              חברה שמפעילה צ'אטבוט שירות לקוחות ושולחת אלפי פניות למודל AI צריכה
+              להבין: ככל שהטקסטים ארוכים יותר, יש יותר טוקנים — ולכן השימוש עשוי
+              להיות יקר ואיטי יותר.
+            </p>
+          </div>
+          <div className="business-grid">
+            {businessItems.map((item) => (
+              <article className="business-card" key={item.title}>
+                <span className={`card-num card-num--${item.tone}`}>{item.num}</span>
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* QUIZ */}
+        <section className="quiz" aria-labelledby="quiz-title">
+          <div className="section-intro">
+            <div className="mono-label mono-label--accent">assert.understanding()</div>
+            <h2 className="section-title" id="quiz-title">
+              חידון קצר
+            </h2>
+            <p className="section-lead">
+              בחרו תשובה אחת לכל שאלה, ואז הריצו את הבדיקה כדי לראות את הציון.
+            </p>
+          </div>
+
+          <div className="quiz-list">
+            {quizQuestions.map((item, questionIndex) => (
+              <article className="quiz-card" key={item.question}>
+                <div className="quiz-card-head">
+                  <span className="test-badge">test {String(questionIndex + 1).padStart(2, '0')}</span>
+                  <h3 id={`quiz-q-${questionIndex}`}>{item.question}</h3>
                 </div>
                 <div
-                  className="probability-track"
-                  aria-label={`${prediction.token}: ${prediction.probability} אחוז`}
+                  className="answer-grid"
+                  role="radiogroup"
+                  aria-labelledby={`quiz-q-${questionIndex}`}
                 >
-                  <span style={{ width: `${prediction.probability}%` }}></span>
+                  {item.options.map((option) => {
+                    const isSelected = answers[questionIndex] === option
+                    const isCorrect = option === item.correct
+                    const showCorrect = submitted && isCorrect
+                    const showWrong = submitted && isSelected && !isCorrect
+                    const ariaLabel = showCorrect
+                      ? `${option} — תשובה נכונה`
+                      : showWrong
+                        ? `${option} — תשובה שגויה`
+                        : undefined
+
+                    return (
+                      <button
+                        className={[
+                          'answer-button',
+                          isSelected ? 'selected' : '',
+                          showCorrect ? 'correct' : '',
+                          showWrong ? 'wrong' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        type="button"
+                        key={option}
+                        role="radio"
+                        aria-checked={isSelected}
+                        aria-label={ariaLabel}
+                        onClick={() => selectAnswer(questionIndex, option)}
+                      >
+                        <span className="answer-text">{option}</span>
+                        {showCorrect && (
+                          <span className="answer-mark answer-mark--ok" aria-hidden="true">✓</span>
+                        )}
+                        {showWrong && (
+                          <span className="answer-mark answer-mark--bad" aria-hidden="true">✗</span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
               </article>
-            )
-          })}
-        </div>
-
-        <p className="prediction-copy">
-          מודל שפה גדול מאומן על כמויות עצומות של טקסטים. המטרה המרכזית שלו היא
-          לחזות מה הטוקן הבא שהכי סביר שיופיע ברצף. המודל לא באמת "חושב" כמו בן
-          אדם, אלא מחשב הסתברויות על בסיס דפוסים שלמד מהמידע שעליו אומן.
-        </p>
-      </section>
-
-      <section className="business-panel" aria-labelledby="business-title">
-        <div className="section-intro">
-          <p className="eyebrow">תובנה עסקית</p>
-          <h2 id="business-title">למה זה חשוב בעולם העסקי?</h2>
-          <p>
-            חברה שמפעילה צ'אטבוט שירות לקוחות ושולחת אלפי פניות למודל AI צריכה
-            להבין שככל שהטקסטים ארוכים יותר, כך יש יותר טוקנים, ולכן השימוש
-            עשוי להיות יקר ואיטי יותר.
-          </p>
-        </div>
-        <div className="business-grid">
-          {businessItems.map((item, index) => (
-            <article className="business-item" key={item.title}>
-              <span>0{index + 1}</span>
-              <h3>{item.title}</h3>
-              <p>{item.text}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="quiz-section" aria-labelledby="quiz-title">
-        <div className="section-intro compact">
-          <p className="eyebrow">Learning checkpoint</p>
-          <h2 id="quiz-title">חידון קצר</h2>
-          <p>בחרו תשובה אחת לכל שאלה ואז שלחו כדי לראות את הציון.</p>
-        </div>
-
-        <div className="quiz-list">
-          {quizQuestions.map((item, questionIndex) => (
-            <article className="quiz-question" key={item.question}>
-              <div className="quiz-question-header">
-                <span>שאלה {questionIndex + 1}</span>
-                <h3 id={`quiz-q-${questionIndex}`}>{item.question}</h3>
-              </div>
-              <div
-                className="answer-grid"
-                role="radiogroup"
-                aria-labelledby={`quiz-q-${questionIndex}`}
-              >
-                {item.options.map((option) => {
-                  const isSelected = answers[questionIndex] === option
-                  const isCorrect = option === item.correct
-                  const showCorrect = quizSubmitted && isCorrect
-                  const showWrong = quizSubmitted && isSelected && !isCorrect
-                  const ariaLabel = showCorrect
-                    ? `${option} — תשובה נכונה`
-                    : showWrong
-                      ? `${option} — תשובה שגויה`
-                      : undefined
-
-                  return (
-                    <button
-                      className={[
-                        'answer-button',
-                        isSelected ? 'selected' : '',
-                        showCorrect ? 'correct' : '',
-                        showWrong ? 'wrong' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      type="button"
-                      key={option}
-                      role="radio"
-                      aria-checked={isSelected}
-                      aria-label={ariaLabel}
-                      onClick={() => selectAnswer(questionIndex, option)}
-                    >
-                      <span className="answer-text">{option}</span>
-                      {showCorrect && (
-                        <span className="answer-mark" aria-hidden="true">✓</span>
-                      )}
-                      {showWrong && (
-                        <span className="answer-mark" aria-hidden="true">✗</span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-            </article>
-          ))}
-        </div>
-
-        <div className="quiz-footer">
-          <button type="button" onClick={submitQuiz} disabled={!canSubmitQuiz}>
-            בדקו ציון
-          </button>
-          <div
-            className={[
-              'score-card',
-              quizSubmitted ? 'visible' : '',
-              quizSubmitted && isPerfect ? 'perfect' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            aria-live="polite"
-          >
-            {quizSubmitted ? (
-              <div className="score-result">
-                <strong>
-                  {score}/{quizQuestions.length}
-                </strong>
-                <span>
-                  {scorePercent}% — {isPerfect ? 'מצוין! כל הכבוד 🎯' : 'כל הכבוד, המשיכו ללמוד'}
-                </span>
-              </div>
-            ) : (
-              `${answeredCount}/${quizQuestions.length} שאלות נענו`
-            )}
+            ))}
           </div>
-        </div>
-      </section>
 
-      <section className="about-panel" aria-labelledby="about-title">
-        <div>
-          <p className="eyebrow">על הפרויקט</p>
-          <h2 id="about-title">המחשה אישית לקורס יישומי AI בעולם העסקי</h2>
-        </div>
-        <div className="about-grid">
-          <p>
-            זהו פרויקט אישי במסגרת הקורס. המושג שנבחר הוא טוקנים במודלי שפה
-            גדולים, מתוך שיעור 9 בנושא Language Models ו-Next Token Prediction.
-          </p>
-          <p>
-            מטרת האתר היא לעזור לסטודנטים עתידיים להבין את המושג דרך הדגמה
-            אינטראקטיבית. האתר נבנה בעזרת React ו-Vite, בסיוע כלי AI, והוא
-            סימולציה פדגוגית בלבד ולא טוקנייזר אמיתי.
-          </p>
-        </div>
-      </section>
+          <div className="quiz-footer">
+            <button
+              type="button"
+              className="btn-run"
+              onClick={submitQuiz}
+              disabled={!canSubmit}
+            >
+              הריצו בדיקה <span className="btn-run-suffix">run_tests</span>
+            </button>
+            <div className="quiz-result" aria-live="polite">
+              <span className={`result-score${perfect && submitted ? ' result-score--pass' : ''}`}>
+                {scoreLine}
+              </span>
+              <span className="result-label">{resultLabel}</span>
+            </div>
+          </div>
+        </section>
 
-      <section className="summary-panel" aria-labelledby="summary-title">
-        <div>
-          <p className="eyebrow">סיכום</p>
-          <h2 id="summary-title">מה למדתם?</h2>
-        </div>
-        <div className="summary-grid">
-          <p>
-            טוקנים הם אחת מאבני הבסיס של מודלי שפה גדולים. הם מאפשרים למודל
-            לפרק טקסט, לייצג אותו בצורה מספרית, ולחזות את ההמשך האפשרי של
-            המשפט.
-          </p>
-          <p>
-            ההמחשה באתר היא סימולציה פדגוגית ואינה טוקנייזר אמיתי של OpenAI.
-            המטרה היא להבין את העיקרון בדרך חזותית ופשוטה להסבר.
-          </p>
-        </div>
-      </section>
+        {/* SUMMARY */}
+        <section className="summary" aria-labelledby="summary-title">
+          <div className="summary-panel">
+            <div className="mono-label mono-label--accent2">/* summary */</div>
+            <h2 className="section-title" id="summary-title">
+              מה למדתם?
+            </h2>
+            <div className="summary-grid">
+              <p>
+                טוקנים הם אבן בסיס של מודלי שפה גדולים. הם מאפשרים למודל לפרק טקסט,
+                לייצג אותו בצורה מספרית, ולחזות את ההמשך האפשרי של המשפט. הכמות שלהם
+                משפיעה גם על עלות וביצועים בשימוש עסקי.
+              </p>
+              <p>
+                ההמחשה כאן היא סימולציה פדגוגית ואינה טוקנייזר אמיתי של OpenAI —
+                ה-Token IDs מדומים. המטרה היא להבין את העיקרון בצורה חזותית ופשוטה.
+                פרויקט אישי בקורס יישומי AI בעולם העסקי, שיעור 9.
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
 
-      <footer className="site-footer">
-        <p>פרויקט אישי במסגרת הקורס "יישומי AI בעולם העסקי".</p>
-        <p>המושג שנבחר: טוקנים במודלי שפה גדולים — שיעור 9.</p>
+      <footer className="footer">
+        <div className="footer-inner">
+          <span className="footer-status">
+            <span className="dot-green" aria-hidden="true"></span>he-IL · RTL · client-side
+          </span>
+          <span className="footer-meta">lesson_09 · tokens · next_token_prediction</span>
+          <span>סימולציה פדגוגית — לא טוקנייזר אמיתי</span>
+        </div>
       </footer>
     </div>
   )
