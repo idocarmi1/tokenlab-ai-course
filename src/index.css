@@ -19,9 +19,9 @@
   --border-glow: rgba(255, 255, 255, 0.08);
   --shadow-card: 0 24px 70px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --shadow-strong: 0 34px 100px rgba(0, 0, 0, 0.42), 0 0 38px rgba(110, 231, 255, 0.06);
-  --radius-sm: 8px;
-  --radius-md: 8px;
-  --radius-lg: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -32,8 +32,9 @@
   --space-8: 56px;
   --space-9: 72px;
   --space-10: 88px;
-  --font-sans: "Segoe UI", Arial, "Noto Sans Hebrew", sans-serif;
-  --font-mono: 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
+  --font-sans: 'Heebo', 'Segoe UI', 'Noto Sans Hebrew', Arial, sans-serif;
+  --font-display: 'Rubik', 'Heebo', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Mono', 'SFMono-Regular', Consolas, monospace;
 
   color: var(--text);
   background: var(--bg);
@@ -115,21 +116,23 @@ h1,
 h2,
 h3 {
   color: var(--text-strong);
+  font-family: var(--font-display);
   line-height: 1.18;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
 }
 
 h1 {
   max-width: 800px;
   margin-bottom: 0;
   font-size: 3.55rem;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 h2 {
   margin-bottom: 0;
   font-size: 1.85rem;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 h3 {
