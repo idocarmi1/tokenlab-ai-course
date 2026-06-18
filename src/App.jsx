@@ -111,7 +111,10 @@ function App() {
   }
 
   return (
-    <main className="page-shell">
+    <div className="page-shell">
+      <a className="skip-link" href="#main">
+        דלגו לתוכן הראשי
+      </a>
       <header className="top-header">
         <a className="brand-mark" href="#top" aria-label="TokenLab ראש הדף">
           TokenLab
@@ -119,6 +122,7 @@ function App() {
         <p>פרויקט אישי — יישומי AI בעולם העסקי</p>
       </header>
 
+      <main id="main">
       <section id="top" className="hero-section" aria-labelledby="page-title">
         <div className="hero-content">
           <p className="eyebrow">שיעור 9 · Language Models · Tokens</p>
@@ -145,7 +149,7 @@ function App() {
           </div>
         </div>
 
-        <aside className="hero-lab-card" aria-label="המחשה חזותית של תהליך הטוקניזציה">
+        <aside className="hero-lab-card" aria-hidden="true">
           <div className="mock-toolbar">
             <span></span>
             <span></span>
@@ -350,29 +354,48 @@ function App() {
             <article className="quiz-question" key={item.question}>
               <div className="quiz-question-header">
                 <span>שאלה {questionIndex + 1}</span>
-                <h3>{item.question}</h3>
+                <h3 id={`quiz-q-${questionIndex}`}>{item.question}</h3>
               </div>
-              <div className="answer-grid">
+              <div
+                className="answer-grid"
+                role="radiogroup"
+                aria-labelledby={`quiz-q-${questionIndex}`}
+              >
                 {item.options.map((option) => {
                   const isSelected = answers[questionIndex] === option
                   const isCorrect = option === item.correct
+                  const showCorrect = quizSubmitted && isCorrect
+                  const showWrong = quizSubmitted && isSelected && !isCorrect
+                  const ariaLabel = showCorrect
+                    ? `${option} — תשובה נכונה`
+                    : showWrong
+                      ? `${option} — תשובה שגויה`
+                      : undefined
 
                   return (
                     <button
                       className={[
                         'answer-button',
                         isSelected ? 'selected' : '',
-                        quizSubmitted && isCorrect ? 'correct' : '',
-                        quizSubmitted && isSelected && !isCorrect ? 'wrong' : '',
+                        showCorrect ? 'correct' : '',
+                        showWrong ? 'wrong' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}
                       type="button"
                       key={option}
-                      aria-pressed={isSelected}
+                      role="radio"
+                      aria-checked={isSelected}
+                      aria-label={ariaLabel}
                       onClick={() => selectAnswer(questionIndex, option)}
                     >
-                      {option}
+                      <span className="answer-text">{option}</span>
+                      {showCorrect && (
+                        <span className="answer-mark" aria-hidden="true">✓</span>
+                      )}
+                      {showWrong && (
+                        <span className="answer-mark" aria-hidden="true">✗</span>
+                      )}
                     </button>
                   )
                 })}
@@ -428,12 +451,13 @@ function App() {
           </p>
         </div>
       </section>
+      </main>
 
       <footer className="site-footer">
         <p>פרויקט אישי במסגרת הקורס "יישומי AI בעולם העסקי".</p>
         <p>המושג שנבחר: טוקנים במודלי שפה גדולים — שיעור 9.</p>
       </footer>
-    </main>
+    </div>
   )
 }
 
