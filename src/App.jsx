@@ -87,12 +87,20 @@ function App() {
     [tokens],
   )
 
+  const tokenCount = tokenData.length
+  const charCount = tokenData.reduce((total, item) => total + item.token.length, 0)
+  const charsPerToken = tokenCount > 0 ? (charCount / tokenCount).toFixed(1) : '0'
+
+  const topProbability = Math.max(...predictions.map((item) => item.probability))
+
   const answeredCount = Object.keys(answers).length
   const score = quizQuestions.reduce(
     (total, item, index) => total + (answers[index] === item.correct ? 1 : 0),
     0,
   )
   const canSubmitQuiz = answeredCount === quizQuestions.length
+  const scorePercent = Math.round((score / quizQuestions.length) * 100)
+  const isPerfect = score === quizQuestions.length
 
   function handleTokenize() {
     setTokens(tokenize(sentence))
@@ -111,7 +119,10 @@ function App() {
   }
 
   return (
-    <main className="page-shell">
+    <div className="page-shell">
+      <a className="skip-link" href="#main">
+        דלגו לתוכן הראשי
+      </a>
       <header className="top-header">
         <a className="brand-mark" href="#top" aria-label="TokenLab ראש הדף">
           TokenLab
@@ -119,6 +130,7 @@ function App() {
         <p>פרויקט אישי — יישומי AI בעולם העסקי</p>
       </header>
 
+      <main id="main">
       <section id="top" className="hero-section" aria-labelledby="page-title">
         <div className="hero-content">
           <p className="eyebrow">שיעור 9 · Language Models · Tokens</p>
@@ -145,7 +157,7 @@ function App() {
           </div>
         </div>
 
-        <aside className="hero-lab-card" aria-label="המחשה חזותית של תהליך הטוקניזציה">
+        <aside className="hero-lab-card" aria-hidden="true">
           <div className="mock-toolbar">
             <span></span>
             <span></span>
@@ -239,6 +251,21 @@ function App() {
             </div>
           </div>
 
+          <div className="token-stats" key={`stats-${tokenizedAt}`} aria-live="polite">
+            <div className="stat-pill">
+              <strong>{tokenCount}</strong>
+              <span>טוקנים</span>
+            </div>
+            <div className="stat-pill">
+              <strong>{charCount}</strong>
+              <span>תווים</span>
+            </div>
+            <div className="stat-pill">
+              <strong>{charsPerToken}</strong>
+              <span>תווים לטוקן</span>
+            </div>
+          </div>
+
           <div className="lab-output-grid">
             <section className="output-zone" aria-labelledby="tokens-title">
               <div className="zone-heading">
@@ -248,7 +275,10 @@ function App() {
               <div className="token-area" key={tokenizedAt}>
                 {tokenData.length > 0 ? (
                   tokenData.map((item) => (
-                    <div className="token-chip" key={`${item.token}-${item.index}`}>
+                    <div
+                      className={`token-chip hue-${item.index % 3}`}
+                      key={`${item.token}-${item.index}`}
+                    >
                       <span>#{item.index + 1}</span>
                       <strong>{item.token}</strong>
                     </div>
@@ -294,20 +324,28 @@ function App() {
         </div>
 
         <div className="prediction-grid">
-          {predictions.map((prediction) => (
-            <article className="prediction-option" key={prediction.token}>
-              <div className="prediction-label">
-                <strong>{prediction.token}</strong>
-                <span>{prediction.probability}%</span>
-              </div>
-              <div
-                className="probability-track"
-                aria-label={`${prediction.token}: ${prediction.probability} אחוז`}
+          {predictions.map((prediction) => {
+            const isTop = prediction.probability === topProbability
+
+            return (
+              <article
+                className={`prediction-option${isTop ? ' winner' : ''}`}
+                key={prediction.token}
               >
-                <span style={{ width: `${prediction.probability}%` }}></span>
-              </div>
-            </article>
-          ))}
+                {isTop && <span className="winner-badge">הכי סביר</span>}
+                <div className="prediction-label">
+                  <strong>{prediction.token}</strong>
+                  <span>{prediction.probability}%</span>
+                </div>
+                <div
+                  className="probability-track"
+                  aria-label={`${prediction.token}: ${prediction.probability} אחוז`}
+                >
+                  <span style={{ width: `${prediction.probability}%` }}></span>
+                </div>
+              </article>
+            )
+          })}
         </div>
 
         <p className="prediction-copy">
@@ -350,29 +388,48 @@ function App() {
             <article className="quiz-question" key={item.question}>
               <div className="quiz-question-header">
                 <span>שאלה {questionIndex + 1}</span>
-                <h3>{item.question}</h3>
+                <h3 id={`quiz-q-${questionIndex}`}>{item.question}</h3>
               </div>
-              <div className="answer-grid">
+              <div
+                className="answer-grid"
+                role="radiogroup"
+                aria-labelledby={`quiz-q-${questionIndex}`}
+              >
                 {item.options.map((option) => {
                   const isSelected = answers[questionIndex] === option
                   const isCorrect = option === item.correct
+                  const showCorrect = quizSubmitted && isCorrect
+                  const showWrong = quizSubmitted && isSelected && !isCorrect
+                  const ariaLabel = showCorrect
+                    ? `${option} — תשובה נכונה`
+                    : showWrong
+                      ? `${option} — תשובה שגויה`
+                      : undefined
 
                   return (
                     <button
                       className={[
                         'answer-button',
                         isSelected ? 'selected' : '',
-                        quizSubmitted && isCorrect ? 'correct' : '',
-                        quizSubmitted && isSelected && !isCorrect ? 'wrong' : '',
+                        showCorrect ? 'correct' : '',
+                        showWrong ? 'wrong' : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}
                       type="button"
                       key={option}
-                      aria-pressed={isSelected}
+                      role="radio"
+                      aria-checked={isSelected}
+                      aria-label={ariaLabel}
                       onClick={() => selectAnswer(questionIndex, option)}
                     >
-                      {option}
+                      <span className="answer-text">{option}</span>
+                      {showCorrect && (
+                        <span className="answer-mark" aria-hidden="true">✓</span>
+                      )}
+                      {showWrong && (
+                        <span className="answer-mark" aria-hidden="true">✗</span>
+                      )}
                     </button>
                   )
                 })}
@@ -385,10 +442,28 @@ function App() {
           <button type="button" onClick={submitQuiz} disabled={!canSubmitQuiz}>
             בדקו ציון
           </button>
-          <div className={quizSubmitted ? 'score-card visible' : 'score-card'} aria-live="polite">
-            {quizSubmitted
-              ? `הציון שלך: ${score}/${quizQuestions.length}`
-              : `${answeredCount}/${quizQuestions.length} שאלות נענו`}
+          <div
+            className={[
+              'score-card',
+              quizSubmitted ? 'visible' : '',
+              quizSubmitted && isPerfect ? 'perfect' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            aria-live="polite"
+          >
+            {quizSubmitted ? (
+              <div className="score-result">
+                <strong>
+                  {score}/{quizQuestions.length}
+                </strong>
+                <span>
+                  {scorePercent}% — {isPerfect ? 'מצוין! כל הכבוד 🎯' : 'כל הכבוד, המשיכו ללמוד'}
+                </span>
+              </div>
+            ) : (
+              `${answeredCount}/${quizQuestions.length} שאלות נענו`
+            )}
           </div>
         </div>
       </section>
@@ -428,12 +503,13 @@ function App() {
           </p>
         </div>
       </section>
+      </main>
 
       <footer className="site-footer">
         <p>פרויקט אישי במסגרת הקורס "יישומי AI בעולם העסקי".</p>
         <p>המושג שנבחר: טוקנים במודלי שפה גדולים — שיעור 9.</p>
       </footer>
-    </main>
+    </div>
   )
 }
 
