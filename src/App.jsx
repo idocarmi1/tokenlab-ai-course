@@ -153,8 +153,8 @@ function App() {
   const scoreLine = submitted ? `${score}/${total}` : `${answeredCount}/${total}`
   const resultLabel = submitted
     ? perfect
-      ? 'PASSED — כל התשובות נכונות'
-      : 'PARTIAL — המשיכו ללמוד'
+      ? 'עברת — כל התשובות נכונות'
+      : 'חלקי — המשיכו ללמוד'
     : 'שאלות שנענו'
 
   useEffect(() => () => {
@@ -224,7 +224,7 @@ function App() {
                 </div>
               )}
               <div className="hero-content">
-                <div className="code-comment">// שיעור 9 · Language Models · Tokens</div>
+                <div className="code-comment">// שיעור 9 · מודלי שפה · טוקנים</div>
                 <div className="wordmark">
                   <span className="wordmark-text">TokenLab</span>
                   <span className="wordmark-cursor" aria-hidden="true">_</span>
@@ -245,8 +245,8 @@ function App() {
                 <div className="hero-tags" aria-label="נושאי השיעור">
                   <span className="tag tag--accent">lesson_09</span>
                   <span className="tag tag--accent2">LLMs</span>
-                  <span className="tag tag--amber">Tokens</span>
-                  <span className="tag tag--muted">Next-Token-Prediction</span>
+                  <span className="tag tag--amber">טוקנים</span>
+                  <span className="tag tag--muted">ניבוי הטוקן הבא</span>
                 </div>
               </div>
             </div>
@@ -258,20 +258,20 @@ function App() {
                   <span></span>
                   <span></span>
                 </span>
-                <span className="pane-title">tokenizer · output</span>
+                <span className="pane-title">מפענח · פלט</span>
               </div>
               <div className="pane-body">
                 <div className="sweep">
                   <div className="sweep-bar"></div>
                 </div>
                 <div className="out-block">
-                  <div className="out-label">INPUT</div>
+                  <div className="out-label">קלט</div>
                   <div className="out-input">
                     אני לומד בינה מלאכותית<span className="caret">▌</span>
                   </div>
                 </div>
                 <div className="out-block">
-                  <div className="out-label">TOKENS</div>
+                  <div className="out-label">טוקנים</div>
                   <div className="out-tokens">
                     <span>אני</span>
                     <span>לומד</span>
@@ -280,7 +280,7 @@ function App() {
                   </div>
                 </div>
                 <div className="out-block">
-                  <div className="out-label">NEXT ›</div>
+                  <div className="out-label">הבא ›</div>
                   <div className="out-next-row">
                     <strong>לעבוד</strong>
                     <span className="mono-accent">0.62</span>
@@ -317,7 +317,7 @@ function App() {
         <section className="concept" aria-labelledby="concept-title">
           <div className="concept-panel">
             <div>
-              <div className="mono-label mono-label--accent">/* concept */</div>
+              <div className="mono-label mono-label--he mono-label--accent">/* מושג */</div>
               <h2 className="section-title" id="concept-title">
                 מהו טוקן?
               </h2>
@@ -355,7 +355,7 @@ function App() {
                 <span></span>
                 <span></span>
               </span>
-              <span className="pane-title">interactive · sandbox</span>
+              <span className="pane-title">אינטראקטיבי · ארגז חול</span>
             </div>
             <div className="panel-body">
               <div className="input-block">
@@ -401,14 +401,14 @@ function App() {
               {scanning && (
                 <div className="scan-line" aria-live="polite">
                   <span className="spinner" aria-hidden="true"></span>
-                  tokenizing…
+                  מפרק לטוקנים…
                 </div>
               )}
 
               <div className="lab-grid">
                 <section className="output-zone" aria-labelledby="tokens-title">
                   <div className="zone-heading">
-                    <span className="step-badge step-badge--accent">step 02</span>
+                    <span className="step-badge step-badge--accent">שלב 02</span>
                     <h3 id="tokens-title">הטוקנים שנוצרו</h3>
                   </div>
                   {showTokens && (
@@ -436,8 +436,8 @@ function App() {
 
                 <section className="output-zone" aria-labelledby="ids-title">
                   <div className="zone-heading">
-                    <span className="step-badge step-badge--amber">step 03</span>
-                    <h3 id="ids-title">Token IDs</h3>
+                    <span className="step-badge step-badge--amber">שלב 03</span>
+                    <h3 id="ids-title">מזהי טוקנים</h3>
                   </div>
                   {showTokens && (
                     <div className="id-list" key={`ids-${run}`}>
@@ -529,7 +529,7 @@ function App() {
         {/* BUSINESS */}
         <section className="business" aria-labelledby="business-title">
           <div className="section-intro">
-            <div className="mono-label mono-label--accent2">// business_impact</div>
+            <div className="mono-label mono-label--he mono-label--accent2">// השפעה עסקית</div>
             <h2 className="section-title" id="business-title">
               למה זה חשוב בעולם העסקי?
             </h2>
@@ -566,7 +566,7 @@ function App() {
             {quizQuestions.map((item, questionIndex) => (
               <article className="quiz-card" key={item.question}>
                 <div className="quiz-card-head">
-                  <span className="test-badge">test {String(questionIndex + 1).padStart(2, '0')}</span>
+                  <span className="test-badge">בדיקה {String(questionIndex + 1).padStart(2, '0')}</span>
                   <h3 id={`quiz-q-${questionIndex}`}>{item.question}</h3>
                 </div>
                 <div
@@ -638,7 +638,7 @@ function App() {
         {/* SUMMARY */}
         <section className="summary" aria-labelledby="summary-title">
           <div className="summary-panel">
-            <div className="mono-label mono-label--accent2">/* summary */</div>
+            <div className="mono-label mono-label--he mono-label--accent2">/* סיכום */</div>
             <h2 className="section-title" id="summary-title">
               מה למדתם?
             </h2>
