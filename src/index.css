@@ -51,6 +51,15 @@ body {
   background-size: auto, auto, 54px 54px, 54px 54px, auto;
 }
 
+/* Dark base background lives on <body> (above) and paints behind everything.
+   The app wrapper stays transparent so the Matrix canvas (z-index:0) shows
+   through; content sits above it via z-index:1. */
+#root {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
 h1,
 h2,
 h3,
