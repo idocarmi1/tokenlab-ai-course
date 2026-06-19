@@ -269,7 +269,7 @@ function App() {
                 </div>
               )}
               <div className="hero-content">
-                <div className="code-comment">// שיעור 9 · מודלי שפה · טוקנים</div>
+                <div className="code-comment">// lesson 9 · language models · tokens</div>
                 <div className="wordmark">
                   <span className="wordmark-text">TokenLab</span>
                   <span className="wordmark-cursor" aria-hidden="true">_</span>
@@ -360,13 +360,17 @@ function App() {
 
         {/* CONCEPT */}
         <section className="concept" aria-labelledby="concept-title">
+          <div className="section-head">
+            <div className="mono-label mono-label--accent">/* concept */</div>
+            <h2 className="section-title" id="concept-title">
+              מהו טוקן?
+            </h2>
+            <p className="section-lead">
+              היחידה הבסיסית שמודל שפה קורא — לא תמיד מילה שלמה, אלא תת-מילה
+              שנקבעת לפי תדירות.
+            </p>
+          </div>
           <div className="concept-panel">
-            <div>
-              <div className="mono-label mono-label--he mono-label--accent">/* מושג */</div>
-              <h2 className="section-title" id="concept-title">
-                מהו טוקן?
-              </h2>
-            </div>
             <ul className="concept-list">
               {concepts.map((item) => (
                 <li className="concept-row" key={item.text}>
@@ -382,7 +386,7 @@ function App() {
 
         {/* LAB */}
         <section id="lab" className="lab" aria-labelledby="lab-title">
-          <div className="section-intro">
+          <div className="section-head">
             <div className="mono-label mono-label--accent">tokenizer.run()</div>
             <h2 className="section-title" id="lab-title">
               המעבדה האינטראקטיבית
@@ -518,7 +522,7 @@ function App() {
 
         {/* SUBWORD TOKENIZATION */}
         <section id="subword" className="subword" aria-labelledby="subword-title">
-          <div className="section-intro">
+          <div className="section-head">
             <div className="mono-label mono-label--accent">tokenizer.encode()</div>
             <h2 className="section-title" id="subword-title">
               טוקניזציה של תת-מילים
@@ -625,19 +629,19 @@ function App() {
 
         {/* PREDICTION */}
         <section className="prediction" aria-labelledby="prediction-title">
-          <div className="prediction-head">
-            <div>
-              <div className="mono-label mono-label--accent">llm.predict(next_token)</div>
-              <h2 className="section-title" id="prediction-title">
-                ניבוי הטוקן הבא
-              </h2>
-            </div>
+          <div className="prediction-panel">
+            <div className="mono-label mono-label--accent">llm.predict(next_token)</div>
+            <h2 className="section-title" id="prediction-title">
+              ניבוי הטוקן הבא
+            </h2>
+            <p className="section-lead">
+              מודל שפה הוא בעצם מנגנון שמנחש את הטוקן הבא שוב ושוב, לפי ההסתברות.
+            </p>
             <div className="sentence-preview">
               אני לומד בינה מלאכותית כדי<span className="caret">▌</span>
             </div>
-          </div>
 
-          <div className="prediction-grid">
+            <div className="prediction-grid">
             {predictions.map((prediction, index) => {
               const isTop = prediction.probability === topProbability
 
@@ -671,24 +675,24 @@ function App() {
             })}
           </div>
 
-          <p className="prediction-copy">
-            מודל שפה גדול מאומן על כמויות עצומות של טקסטים. המטרה המרכזית שלו היא
-            לחזות מה הטוקן הבא שהכי סביר שיופיע ברצף. המודל לא באמת "חושב" כמו בן
-            אדם — הוא מחשב הסתברויות על בסיס הדפוסים שלמד מהמידע שעליו אומן.
-          </p>
+            <p className="prediction-copy">
+              מודל שפה גדול מאומן על כמויות עצומות של טקסטים. המטרה המרכזית שלו היא
+              לחזות מה הטוקן הבא שהכי סביר שיופיע ברצף. המודל לא באמת "חושב" כמו בן
+              אדם — הוא מחשב הסתברויות על בסיס הדפוסים שלמד מהמידע שעליו אומן.
+            </p>
+          </div>
         </section>
 
         {/* BUSINESS */}
         <section className="business" aria-labelledby="business-title">
-          <div className="section-intro">
-            <div className="mono-label mono-label--he mono-label--accent2">// השפעה עסקית</div>
+          <div className="section-head">
+            <div className="mono-label mono-label--accent2">// business_impact</div>
             <h2 className="section-title" id="business-title">
               למה זה חשוב בעולם העסקי?
             </h2>
             <p className="section-lead">
-              חברה שמפעילה צ'אטבוט שירות לקוחות ושולחת אלפי פניות למודל AI צריכה
-              להבין: ככל שהטקסטים ארוכים יותר, יש יותר טוקנים — ולכן השימוש עשוי
-              להיות יקר ואיטי יותר.
+              חברות ה-AI מתמחרות לפי טוקנים — כל קריאה ל-API עולה לפי כמות
+              הטוקנים. טקסט בעברית מתפצל ליותר טוקנים מאנגלית, ולכן גם עולה יותר.
             </p>
           </div>
           <div className="business-grid">
@@ -704,7 +708,7 @@ function App() {
 
         {/* QUIZ */}
         <section className="quiz" aria-labelledby="quiz-title">
-          <div className="section-intro">
+          <div className="section-head">
             <div className="mono-label mono-label--accent">assert.understanding()</div>
             <h2 className="section-title" id="quiz-title">
               חידון קצר
@@ -789,11 +793,17 @@ function App() {
 
         {/* SUMMARY */}
         <section className="summary" aria-labelledby="summary-title">
-          <div className="summary-panel">
-            <div className="mono-label mono-label--he mono-label--accent2">/* סיכום */</div>
+          <div className="section-head">
+            <div className="mono-label mono-label--accent2">/* summary */</div>
             <h2 className="section-title" id="summary-title">
               מה למדתם?
             </h2>
+            <p className="section-lead">
+              מטקסט לטוקנים, מטוקנים למזהים, וממזהים לניבוי הטוקן הבא — זו השרשרת
+              שמודל שפה חוזר עליה שוב ושוב.
+            </p>
+          </div>
+          <div className="summary-panel">
             <div className="summary-grid">
               <p>
                 טוקנים הם אבן בסיס של מודלי שפה גדולים. הם מאפשרים למודל לפרק טקסט,
