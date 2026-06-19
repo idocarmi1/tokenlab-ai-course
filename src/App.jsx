@@ -115,6 +115,32 @@ function tokenId(token) {
   return hash + 10000
 }
 
+const subwordExamples = ['unhappiness', 'counterproductive', 'x==1', 'בינה מלאכותית']
+
+// Real GPT (cl100k_base) BPE tokenization. The codec ({ encode, decode }) is
+// lazy-loaded (see effect below) so its large rank tables don't bloat the
+// initial bundle. We rebuild each token's visible text via incremental decode
+// so multi-byte characters (e.g. Hebrew) stay intact.
+function subwordTokens(text, codec) {
+  const clean = String(text || '')
+  if (!clean || !codec) return []
+
+  const ids = codec.encode(clean)
+  let decodedSoFar = ''
+
+  return ids.map((id, index) => {
+    const next = codec.decode(ids.slice(0, index + 1))
+    const piece = next.slice(decodedSoFar.length)
+    decodedSoFar = next
+    return { id, piece, index }
+  })
+}
+
+function displayPiece(piece) {
+  if (piece === '') return '◌'
+  return piece.replace(/ /g, '·')
+}
+
 function App() {
   const [sentence, setSentence] = useState(defaultSentence)
   const [tokens, setTokens] = useState(() => tokenize(defaultSentence))
@@ -122,7 +148,26 @@ function App() {
   const [scanning, setScanning] = useState(false)
   const [answers, setAnswers] = useState({})
   const [submitted, setSubmitted] = useState(false)
+  const [subwordText, setSubwordText] = useState('unhappiness')
+  const [tokenizer, setTokenizer] = useState(null)
   const timeoutRef = useRef(null)
+
+  useEffect(() => {
+    let active = true
+    import('gpt-tokenizer').then((mod) => {
+      if (active) setTokenizer({ encode: mod.encode, decode: mod.decode })
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const subwordData = useMemo(
+    () => subwordTokens(subwordText, tokenizer),
+    [subwordText, tokenizer],
+  )
+  const subwordChars = [...subwordText].length
+  const subwordCount = subwordData.length
 
   const [accentPrimary, accentSecondary] = accentMap[ACCENT] ?? accentMap['cyan+violet']
   const themeVars = { '--accent': accentPrimary, '--accent-2': accentSecondary }
@@ -464,6 +509,113 @@ function App() {
                     מחשבים אינם מבינים מילים כמו בני אדם, ולכן כל טוקן מיוצג כמספר.
                     הייצוג המספרי מאפשר למודל לחשב, לזהות קשרים בין מילים, ולחזות
                     מה יכול להגיע בהמשך.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SUBWORD TOKENIZATION */}
+        <section id="subword" className="subword" aria-labelledby="subword-title">
+          <div className="section-intro">
+            <div className="mono-label mono-label--accent">tokenizer.encode()</div>
+            <h2 className="section-title" id="subword-title">
+              טוקניזציה של תת-מילים
+            </h2>
+            <p className="section-lead">
+              בפועל טוקן הוא בדרך כלל תת-מילה — רצף תווים נפוץ. מילה אחת יכולה
+              להתפצל לכמה טוקנים, ולכן מספר התווים כמעט תמיד שונה ממספר הטוקנים.
+            </p>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head">
+              <span className="win-dots win-dots--mute" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </span>
+              <span className="pane-title pane-title--ltr">BPE · cl100k_base</span>
+            </div>
+            <div className="panel-body">
+              <div className="input-block">
+                <label htmlFor="subword-input" className="input-label">
+                  כתבו מילה או ביטוי
+                </label>
+                <p className="input-help">
+                  אפשר בעברית או באנגלית. נסו מילה ארוכה כדי לראות אותה מתפצלת
+                  לתת-מילים.
+                </p>
+                <div className="input-row">
+                  <span className="input-prompt" aria-hidden="true">&gt;</span>
+                  <input
+                    id="subword-input"
+                    type="text"
+                    value={subwordText}
+                    onChange={(event) => setSubwordText(event.target.value)}
+                    placeholder="לדוגמה: unhappiness"
+                  />
+                </div>
+                <div className="sw-examples" aria-label="דוגמאות מהתרגיל">
+                  {subwordExamples.map((example) => (
+                    <button
+                      type="button"
+                      className="sw-example"
+                      key={example}
+                      onClick={() => setSubwordText(example)}
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="sw-counter" aria-live="polite">
+                <span className="sw-count">
+                  <strong>{subwordChars}</strong> תווים
+                </span>
+                <span className="sw-arrow" aria-hidden="true">→</span>
+                <span className="sw-count sw-count--tokens">
+                  <strong>{tokenizer ? subwordCount : '…'}</strong> טוקנים
+                </span>
+              </div>
+
+              {!tokenizer ? (
+                <div className="scan-line" aria-live="polite">
+                  <span className="spinner" aria-hidden="true"></span>
+                  טוען מנתח טוקנים…
+                </div>
+              ) : subwordData.length > 0 ? (
+                <div className="sw-chips">
+                  {subwordData.map((item) => (
+                    <div
+                      className={`sw-chip ${item.index % 2 ? 'hue-b' : 'hue-a'}`}
+                      key={item.index}
+                      style={{ animationDelay: `${item.index * 45}ms` }}
+                    >
+                      <span
+                        className={`sw-piece${item.piece === '' ? ' sw-piece--empty' : ''}`}
+                      >
+                        {displayPiece(item.piece)}
+                      </span>
+                      <span className="sw-id">{item.id}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="empty-state">הקלידו טקסט כדי לראות תת-מילים.</p>
+              )}
+
+              <div className="callout">
+                <span className="callout-mark" aria-hidden="true">//</span>
+                <div>
+                  <strong>למה דווקא הפיצול הזה?</strong>
+                  <p>
+                    הפיצול נקבע לפי שכיחות: רצפים נפוצים הופכים לטוקן אחד, ורצפים
+                    נדירים מתפרקים לחלקים קטנים יותר. לכן טקסט בעברית נוטה
+                    להתפצל לחתיכות קטנות מאוד. המזהים כאן הם טוקנים אמיתיים של
+                    GPT (cl100k_base), לא מספרים מדומים.
                   </p>
                 </div>
               </div>
