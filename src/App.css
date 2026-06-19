@@ -201,6 +201,8 @@ main {
   direction: ltr;
 }
 
+.mono-label--he { direction: rtl; }
+
 .mono-label--accent { color: var(--accent); }
 .mono-label--accent2 { color: var(--accent-2); }
 
@@ -340,7 +342,7 @@ main {
   font-family: var(--mono);
   font-size: 13px;
   color: var(--faint);
-  direction: ltr;
+  direction: rtl;
 }
 
 .wordmark {
@@ -404,7 +406,6 @@ main {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 6px 11px;
-  direction: ltr;
 }
 
 .tag--accent { color: var(--accent); background: rgba(87, 208, 230, 0.08); }
@@ -438,7 +439,7 @@ main {
 
 .pane-title {
   margin-inline-start: 6px;
-  direction: ltr;
+  direction: rtl;
 }
 
 .pane-body {
@@ -474,10 +475,10 @@ main {
 .out-label {
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: normal;
   color: var(--faint);
   margin-bottom: 10px;
-  direction: ltr;
+  direction: rtl;
 }
 
 .out-input {
@@ -806,7 +807,7 @@ main {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 3px 8px;
-  direction: ltr;
+  direction: rtl;
 }
 
 .step-badge--accent { color: var(--accent); background: rgba(87, 208, 230, 0.08); }
@@ -1077,7 +1078,7 @@ main {
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 5px 10px;
-  direction: ltr;
+  direction: rtl;
 }
 
 .quiz-card-head h3 {

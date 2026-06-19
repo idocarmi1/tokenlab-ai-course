@@ -17,7 +17,41 @@
     <title>TokenLab — איך מודל שפה קורא משפט?</title>
   </head>
   <body>
+    <canvas
+      id="matrix-bg"
+      style="position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:.6;"
+    ></canvas>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      (function () {
+        const c = document.getElementById('matrix-bg'),
+          x = c.getContext('2d')
+        const chars = '0123456789'
+        let f = 16,
+          cols,
+          drops
+        function init() {
+          c.width = innerWidth
+          c.height = innerHeight
+          cols = Math.floor(c.width / f)
+          drops = Array(cols).fill(1)
+        }
+        init()
+        addEventListener('resize', init)
+        setInterval(() => {
+          x.fillStyle = 'rgba(2,8,20,0.08)'
+          x.fillRect(0, 0, c.width, c.height)
+          x.font = f + 'px monospace'
+          for (let i = 0; i < drops.length; i++) {
+            const t = chars[(Math.random() * chars.length) | 0]
+            x.fillStyle = Math.random() > 0.92 ? '#cfe6ff' : '#4d8bff'
+            x.fillText(t, i * f, drops[i] * f)
+            if (drops[i] * f > c.height && Math.random() > 0.975) drops[i] = 0
+            drops[i]++
+          }
+        }, 50)
+      })()
+    </script>
   </body>
 </html>
