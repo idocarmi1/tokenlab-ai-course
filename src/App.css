@@ -190,8 +190,14 @@ main {
 }
 
 /* ============ Shared section bits ============ */
-.section-intro {
-  margin-bottom: 20px;
+.section-head {
+  margin-bottom: 16px;
+  padding: 22px 24px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(87, 208, 230, 0.04), transparent 60%),
+    var(--panel);
+  border: 1px solid var(--line);
 }
 
 .mono-label {
@@ -199,6 +205,7 @@ main {
   font-size: 12px;
   margin-bottom: 10px;
   direction: ltr;
+  text-align: right;
 }
 
 .mono-label--he { direction: rtl; }
@@ -342,7 +349,7 @@ main {
   font-family: var(--mono);
   font-size: 13px;
   color: var(--faint);
-  direction: rtl;
+  direction: ltr;
 }
 
 .wordmark {
@@ -611,14 +618,10 @@ main {
 }
 
 .concept-panel {
-  display: grid;
-  grid-template-columns: 0.7fr 1.3fr;
-  gap: 48px;
-  align-items: start;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 40px 42px;
+  padding: 28px;
 }
 
 .concept-list {
@@ -925,17 +928,19 @@ main {
   padding: 24px 22px;
 }
 
-.prediction-head {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 18px;
-  margin-bottom: 22px;
+.prediction-panel {
+  padding: 28px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(87, 208, 230, 0.04), transparent 60%),
+    var(--panel);
+  border: 1px solid var(--line);
 }
 
 .sentence-preview {
-  background: var(--panel);
+  display: inline-block;
+  margin: 22px 0 18px;
+  background: var(--panel-2);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 11px 16px;
@@ -1193,11 +1198,7 @@ main {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 40px 42px;
-}
-
-.summary-panel .section-title {
-  margin-bottom: 22px;
+  padding: 28px;
 }
 
 .summary-grid {
@@ -1368,11 +1369,6 @@ main {
     min-height: auto;
   }
 
-  .concept-panel {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-
   .lab-grid {
     grid-template-columns: 1fr;
   }
@@ -1401,12 +1397,9 @@ main {
     grid-template-columns: 1fr;
   }
 
-  .prediction-head {
-    align-items: flex-start;
-  }
-
   .concept-panel,
-  .summary-panel {
+  .summary-panel,
+  .prediction-panel {
     padding: 26px 22px;
   }
 
